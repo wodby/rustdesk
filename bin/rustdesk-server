@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# Runs the ID server (hbbs), the relay (hbbr) and the WebSocket router (nginx) together. When one of them
+# stops, the others are stopped too and the container exits with its status, so it gets restarted.
+
+set -e
+
+if [[ -n "${DEBUG}" ]]; then
+    set -x
+fi
+
+cd /data
+
+pids=()
+
+stop() {
+    kill -TERM "${pids[@]}" 2>/dev/null || true
+}
+
+trap stop TERM INT
+
+# hbbs loads the key pair from the working directory, creating it on first start. hbbr must load the
+# same pair, so it starts only once the pair exists.
+# Devices learn the relay's address from the ID server when the public address is known.
+hbbs_args=()
+if [[ -n "${RUSTDESK_HOST}" && -n "${RUSTDESK_RELAY_PORT}" ]]; then
+    hbbs_args+=(-r "${RUSTDESK_HOST}:${RUSTDESK_RELAY_PORT}")
+fi
+
+hbbs "${hbbs_args[@]}" &
+pids+=($!)
+
+for _ in $(seq 1 100); do
+    if [[ -s id_ed25519.pub ]] || ! kill -0 "${pids[0]}" 2>/dev/null; then
+        break
+    fi
+    sleep 0.1
+done
+
+if [[ ! -s id_ed25519.pub ]]; then
+    echo "The ID server didn't create its key pair in /data" >&2
+    stop
+    wait || true
+    exit 1
+fi
+
+# With the key, the relay accepts only clients that use this server's key.
+hbbr -k _ &
+pids+=($!)
+
+nginx -e /dev/stderr -g 'daemon off;' &
+pids+=($!)
+
+status=0
+wait -n "${pids[@]}" || status=$?
+stop
+wait || true
+
+exit "${status}"

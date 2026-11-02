@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "image": "wodby/rustdesk",
+  "versions": [
+    {
+      "version": {
+        "env": "RUSTDESK1"
+      },
+      "variants": [
+        {
+          "short": [
+            "{minor}",
+            "{major}"
+          ],
+          "full": "{version}"
+        }
+      ]
+    }
+  ]
+}

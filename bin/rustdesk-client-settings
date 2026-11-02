@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Prints the values to enter in the RustDesk client's ID/Relay server settings.
+
+set -euo pipefail
+
+key_file=/data/id_ed25519.pub
+
+if [[ ! -s "${key_file}" ]]; then
+    echo "The server hasn't created its key yet. Start the server and try again." >&2
+    exit 1
+fi
+
+host="${RUSTDESK_HOST:-<server address>}"
+id_port="${RUSTDESK_ID_PORT:-21116}"
+relay_port="${RUSTDESK_RELAY_PORT:-21117}"
+
+cat <<SETTINGS
+Enter these values in the RustDesk client under Settings > Network > ID/Relay server, on every device that
+uses this server:
+
+ID server:    ${host}:${id_port}
+Relay server: ${host}:${relay_port}
+API server:   leave empty
+Key:          $(cat "${key_file}")
+SETTINGS
