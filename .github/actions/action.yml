@@ -1,0 +1,23 @@
+name: push
+description: combine multi-arch image and push
+inputs:
+  version:
+    description: version
+    required: true
+  latest:
+    description: if tag latest
+    required: false
+  latest_major:
+    description: if tag latest major version
+    required: false    
+runs:
+  using: "composite"
+  steps:
+  - name: Build image
+    env:
+      RUSTDESK_VER: ${{ inputs.version }}
+      LATEST: ${{ inputs.latest }}
+      LATEST_MAJOR: ${{ inputs.latest_major }}
+    run: |
+      . $GITHUB_ACTION_PATH/release.sh
+    shell: bash
