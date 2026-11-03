@@ -4,14 +4,18 @@
 [![Docker Pulls](https://img.shields.io/docker/pulls/wodby/rustdesk.svg)](https://hub.docker.com/r/wodby/rustdesk)
 
 Runs the open-source [RustDesk server](https://github.com/rustdesk/rustdesk-server): the ID server (`hbbs`) and the
-relay (`hbbr`) in one container.
+relay (`hbbr`) in one container, with a small web server that makes both reachable over WebSocket on one HTTP port.
+
+The server is built from source with a patch (`patches/`): it also signs devices in over WebSocket, which the
+open-source release refuses. With it, devices with the RustDesk app's **Use WebSocket** setting connect through one
+HTTPS address and can be controlled as well as control others, with no other ports open.
 
 ## Docker Images
 
 ❗For better reliability we release images with stability tags (`wodby/rustdesk:1-rN`) which correspond to
 [git tags](https://github.com/wodby/rustdesk/releases). We strongly recommend using images only with stability tags.
 
-- Based on Alpine Linux, with RustDesk's official static release binaries
+- Based on Alpine Linux, with the RustDesk server built from the official source and `patches/`
 - Base image: [alpine](https://hub.docker.com/_/alpine)
 - [GitHub actions builds](https://github.com/wodby/rustdesk/actions)
 - [Docker Hub](https://hub.docker.com/r/wodby/rustdesk)
@@ -25,13 +29,13 @@ All images are built for `linux/amd64` and `linux/arm64`.
 ## Run it
 
 ```bash
-docker run -d --name rustdesk -v rustdesk:/data \
-  -p 21115:21115 -p 21116:21116 -p 21116:21116/udp -p 21117:21117 \
+docker run -d --name rustdesk -v rustdesk:/data -p 8080:8080 \
   -e RUSTDESK_HOST=rustdesk.example.com \
   wodby/rustdesk:1
 ```
 
-Then print the values to enter in every RustDesk client under **Settings → Network → ID/Relay server**:
+Put HTTPS for `rustdesk.example.com` in front of port 8080, then print the values to enter in every RustDesk app
+under **Settings → Network**:
 
 ```bash
 docker exec rustdesk rustdesk-client-settings
@@ -44,11 +48,15 @@ docker exec rustdesk rustdesk-client-settings
 | 21115 | TCP | NAT type test and online status |
 | 21116 | TCP and UDP | ID server: devices sign in over UDP and request connections over TCP, on the same port |
 | 21117 | TCP | Relay |
-| 8080 | HTTP | Status page (`/`) with the server's addresses and setup steps, `/healthz`, and WebSocket routes `/ws/id` and `/ws/relay` |
+| 8080 | HTTP | WebSocket routes `/ws/id` (ID server) and `/ws/relay` (relay), the status page (`/`) with setup steps, and `/healthz` |
 
-Clients with **Use WebSocket** turned on can connect to other devices through the WebSocket routes, but other
-devices can't connect to them: the open-source server signs devices in only over UDP. Put HTTPS in front of port
-8080 for those clients.
+Devices with **Use WebSocket** turned on need only port 8080 behind HTTPS. They enter the HTTPS address as the API
+server, because that is how the RustDesk app chooses `wss://`; the server has no API and answers its requests with
+404. Every WebSocket session goes through the relay.
+
+Devices without WebSocket need 21115-21117, with TCP and UDP 21116 on the same public port. Set
+`RUSTDESK_ID_PORT` and `RUSTDESK_RELAY_PORT` when those differ from the defaults, and `ALWAYS_USE_RELAY=Y` when
+the server sees devices through a proxy.
 
 ## Key
 
