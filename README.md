@@ -44,7 +44,7 @@ docker exec rustdesk rustdesk-client-settings
 | 21115 | TCP | NAT type test and online status |
 | 21116 | TCP and UDP | ID server: devices sign in over UDP and request connections over TCP, on the same port |
 | 21117 | TCP | Relay |
-| 8080 | HTTP | Status page (`/`, `/healthz`) and WebSocket routes `/ws/id` and `/ws/relay` |
+| 8080 | HTTP | Status page (`/`) with the server's addresses and setup steps, `/healthz`, and WebSocket routes `/ws/id` and `/ws/relay` |
 
 Clients with **Use WebSocket** turned on can connect to other devices through the WebSocket routes, but other
 devices can't connect to them: the open-source server signs devices in only over UDP. Put HTTPS in front of port

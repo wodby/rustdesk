@@ -88,8 +88,28 @@ docker run --rm -i --network "container:${cid}" -v "${PWD}/probe.py:/probe.py:ro
     python -I /probe.py "${address}" 21116 21117 "${key}"
 
 echo -n "Checking other paths... "
-run curl -fsS http://localhost:8080/ | grep -q 'RustDesk server'
+page="$(run curl -fsS http://localhost:8080/)"
+grep -q '<title>RustDesk Server</title>' <<< "${page}"
+grep -q '<code>rustdesk.example.com:31999</code>' <<< "${page}"
+grep -q '<code>rustdesk.example.com:31998</code>' <<< "${page}"
+grep -q 'https://wodby.com/docs/2.0/stacks/catalog/rustdesk/' <<< "${page}"
+if grep -qF "${key}" <<< "${page}"; then
+    echo "The status page shows the key" >&2
+    exit 1
+fi
+[[ "$(run curl -s -o /dev/null -w '%{content_type}' http://localhost:8080/)" == "text/html; charset=utf-8" ]]
 [[ "$(run curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:8080/api/heartbeat)" == "404" ]]
+echo "OK"
+
+echo -n "Checking the status page without published ports and with markup in the address... "
+page="$(docker run --rm --entrypoint rustdesk-status-page -e 'RUSTDESK_HOST=<b>"x"&y' "${IMAGE}")"
+grep -q "ports aren't published yet" <<< "${page}"
+page="$(docker run --rm --entrypoint rustdesk-status-page -e 'RUSTDESK_HOST=<b>"x"&y' -e RUSTDESK_ID_PORT=1 -e RUSTDESK_RELAY_PORT=2 "${IMAGE}")"
+grep -qF '<code>&lt;b&gt;&quot;x&quot;&amp;y:1</code>' <<< "${page}"
+if grep -qF '<b>"x"' <<< "${page}"; then
+    echo "The status page doesn't escape the address" >&2
+    exit 1
+fi
 echo "OK"
 
 echo -n "Checking client settings... "
