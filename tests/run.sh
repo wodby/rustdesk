@@ -87,9 +87,16 @@ address="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{
 docker run --rm -i --network "container:${cid}" -v "${PWD}/probe.py:/probe.py:ro" python:3-alpine \
     python -I /probe.py "${address}" 21116 21117 "${key}"
 
+echo "Checking a relayed session between two devices in WebSocket mode..."
+docker run --rm -i --network "container:${cid}" -v "${PWD}/probe_ws.py:/probe_ws.py:ro" python:3-alpine \
+    python -I /probe_ws.py ws://localhost:8080 "${key}"
+
 echo -n "Checking other paths... "
 page="$(run curl -fsS http://localhost:8080/)"
 grep -q '<title>RustDesk Server</title>' <<< "${page}"
+grep -q 'Use WebSocket' <<< "${page}"
+grep -q '<code>rustdesk.example.com</code>' <<< "${page}"
+grep -q '<code>https://rustdesk.example.com</code>' <<< "${page}"
 grep -q '<code>rustdesk.example.com:31999</code>' <<< "${page}"
 grep -q '<code>rustdesk.example.com:31998</code>' <<< "${page}"
 grep -q 'https://wodby.com/docs/2.0/stacks/catalog/rustdesk/' <<< "${page}"
@@ -103,7 +110,11 @@ echo "OK"
 
 echo -n "Checking the status page without published ports and with markup in the address... "
 page="$(docker run --rm --entrypoint rustdesk-status-page -e 'RUSTDESK_HOST=<b>"x"&y' "${IMAGE}")"
-grep -q "ports aren't published yet" <<< "${page}"
+grep -qF '<code>&lt;b&gt;&quot;x&quot;&amp;y</code>' <<< "${page}"
+if grep -q 'turned off' <<< "${page}"; then
+    echo "The status page shows port-based values without published ports" >&2
+    exit 1
+fi
 page="$(docker run --rm --entrypoint rustdesk-status-page -e 'RUSTDESK_HOST=<b>"x"&y' -e RUSTDESK_ID_PORT=1 -e RUSTDESK_RELAY_PORT=2 "${IMAGE}")"
 grep -qF '<code>&lt;b&gt;&quot;x&quot;&amp;y:1</code>' <<< "${page}"
 if grep -qF '<b>"x"' <<< "${page}"; then
@@ -114,9 +125,17 @@ echo "OK"
 
 echo -n "Checking client settings... "
 settings="$(run rustdesk-client-settings)"
+grep -q "Turn on Use WebSocket" <<< "${settings}"
+grep -q "ID server:    rustdesk.example.com$" <<< "${settings}"
+grep -q "API server:   https://rustdesk.example.com$" <<< "${settings}"
 grep -q "ID server:    rustdesk.example.com:31999" <<< "${settings}"
 grep -q "Relay server: rustdesk.example.com:31998" <<< "${settings}"
-grep -q "Key:          ${key}" <<< "${settings}"
+[[ "$(grep -c "Key:          ${key}" <<< "${settings}")" == "2" ]]
+settings="$(docker run --rm --entrypoint sh -v "${volume}:/data" -e RUSTDESK_HOST=rustdesk.example.com "${IMAGE}" -c rustdesk-client-settings)"
+if grep -q "turned off" <<< "${settings}"; then
+    echo "Client settings show port-based values without published ports" >&2
+    exit 1
+fi
 echo "OK"
 
 echo -n "Checking the key survives a restart... "

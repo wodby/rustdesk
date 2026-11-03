@@ -21,16 +21,26 @@ host="$(escape "${RUSTDESK_HOST:-}")"
 id_port="$(escape "${RUSTDESK_ID_PORT:-}")"
 relay_port="$(escape "${RUSTDESK_RELAY_PORT:-}")"
 
-if [[ -n "${host}" && -n "${id_port}" && -n "${relay_port}" ]]; then
-    settings="<dl>
-<dt>ID server</dt><dd><code>${host}:${id_port}</code></dd>
-<dt>Relay server</dt><dd><code>${host}:${relay_port}</code></dd>
-<dt>API server</dt><dd>leave empty</dd>
+# Without a public address, the page can only describe the setup in general terms.
+shown_host="${host:-the server&apos;s address}"
+
+settings="<ol>
+<li>Turn on <strong>Use WebSocket</strong>.</li>
+<li>Under <strong>ID/Relay server</strong>, enter:
+<dl>
+<dt>ID server</dt><dd><code>${shown_host}</code></dd>
+<dt>Relay server</dt><dd>leave empty</dd>
+<dt>API server</dt><dd><code>https://${shown_host}</code></dd>
 <dt>Key</dt><dd>ask the server's administrator</dd>
-</dl>"
-else
-    settings="<p>The server's ports aren't published yet, so devices can't connect. The administrator can publish them
-by following the <a href=\"${guide}\">setup guide</a>.</p>"
+</dl>
+</li>
+</ol>"
+
+# Devices can also connect without WebSocket when the server's TCP and UDP ports are published.
+if [[ -n "${host}" && -n "${id_port}" && -n "${relay_port}" ]]; then
+    settings+="
+<p>Devices with <strong>Use WebSocket</strong> turned off use ID server <code>${host}:${id_port}</code> and relay
+server <code>${host}:${relay_port}</code> instead, and leave <strong>API server</strong> empty.</p>"
 fi
 
 cat <<EOF
@@ -53,7 +63,7 @@ code { background: #f2f2f2; padding: 0.1rem 0.3rem; border-radius: 0.2rem; }
 <p>This is a <a href="https://rustdesk.com/">RustDesk</a> server for remote desktop. It has no web interface: use it
 from the RustDesk app on each device.</p>
 <h2>Set up a device</h2>
-<p>In the RustDesk app, open <strong>Settings &gt; Network &gt; ID/Relay server</strong> and enter:</p>
+<p>In the RustDesk app, open <strong>Settings &gt; Network</strong>:</p>
 ${settings}
 <p>Administrators find the key and the full setup steps in the <a href="${guide}">RustDesk Server guide</a>.</p>
 </body>

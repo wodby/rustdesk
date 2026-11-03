@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Prints the values to enter in the RustDesk client's ID/Relay server settings.
+# Prints the values to enter in the RustDesk app's ID/Relay server settings.
 
 set -euo pipefail
 
@@ -10,16 +10,30 @@ if [[ ! -s "${key_file}" ]]; then
     exit 1
 fi
 
+key="$(cat "${key_file}")"
 host="${RUSTDESK_HOST:-<server address>}"
-id_port="${RUSTDESK_ID_PORT:-21116}"
-relay_port="${RUSTDESK_RELAY_PORT:-21117}"
 
 cat <<SETTINGS
-Enter these values in the RustDesk client under Settings > Network > ID/Relay server, on every device that
-uses this server:
+In the RustDesk app on every device that uses this server, open Settings > Network:
 
-ID server:    ${host}:${id_port}
-Relay server: ${host}:${relay_port}
-API server:   leave empty
-Key:          $(cat "${key_file}")
+1. Turn on Use WebSocket.
+2. Under ID/Relay server, enter:
+
+   ID server:    ${host}
+   Relay server: leave empty
+   API server:   https://${host}
+   Key:          ${key}
 SETTINGS
+
+# Devices can also connect without WebSocket when the server's TCP and UDP ports are published.
+if [[ -n "${RUSTDESK_ID_PORT:-}" && -n "${RUSTDESK_RELAY_PORT:-}" ]]; then
+    cat <<SETTINGS
+
+Devices with Use WebSocket turned off use these values instead:
+
+   ID server:    ${host}:${RUSTDESK_ID_PORT}
+   Relay server: ${host}:${RUSTDESK_RELAY_PORT}
+   API server:   leave empty
+   Key:          ${key}
+SETTINGS
+fi
