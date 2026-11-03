@@ -47,6 +47,9 @@ fi
 hbbr -k _ &
 pids+=($!)
 
+mkdir -p /tmp/rustdesk-page
+rustdesk-status-page > /tmp/rustdesk-page/index.html
+
 nginx -e /dev/stderr -g 'daemon off;' &
 pids+=($!)
 

@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Prints the HTML page served on the server's address: how to set up the RustDesk app, with the server's
+# public addresses when they are known. The key is left out: devices without it can't use the server.
+
+set -euo pipefail
+
+# Since bash 5.2, & in a pattern replacement stands for the matched text; escaping needs it literal.
+shopt -u patsub_replacement 2>/dev/null || true
+
+guide="https://wodby.com/docs/2.0/stacks/catalog/rustdesk/"
+
+escape() {
+    local value="${1//&/&amp;}"
+    value="${value//</&lt;}"
+    value="${value//>/&gt;}"
+    value="${value//\"/&quot;}"
+    printf '%s' "${value}"
+}
+
+host="$(escape "${RUSTDESK_HOST:-}")"
+id_port="$(escape "${RUSTDESK_ID_PORT:-}")"
+relay_port="$(escape "${RUSTDESK_RELAY_PORT:-}")"
+
+if [[ -n "${host}" && -n "${id_port}" && -n "${relay_port}" ]]; then
+    settings="<dl>
+<dt>ID server</dt><dd><code>${host}:${id_port}</code></dd>
+<dt>Relay server</dt><dd><code>${host}:${relay_port}</code></dd>
+<dt>API server</dt><dd>leave empty</dd>
+<dt>Key</dt><dd>ask the server's administrator</dd>
+</dl>"
+else
+    settings="<p>The server's ports aren't published yet, so devices can't connect. The administrator can publish them
+by following the <a href=\"${guide}\">setup guide</a>.</p>"
+fi
+
+cat <<EOF
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RustDesk Server</title>
+<style>
+body { font-family: system-ui, sans-serif; line-height: 1.5; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; color: #222; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; }
+dt { font-weight: 600; }
+dd { margin: 0; }
+code { background: #f2f2f2; padding: 0.1rem 0.3rem; border-radius: 0.2rem; }
+</style>
+</head>
+<body>
+<h1>RustDesk Server</h1>
+<p>This is a <a href="https://rustdesk.com/">RustDesk</a> server for remote desktop. It has no web interface: use it
+from the RustDesk app on each device.</p>
+<h2>Set up a device</h2>
+<p>In the RustDesk app, open <strong>Settings &gt; Network &gt; ID/Relay server</strong> and enter:</p>
+${settings}
+<p>Administrators find the key and the full setup steps in the <a href="${guide}">RustDesk Server guide</a>.</p>
+</body>
+</html>
+EOF
